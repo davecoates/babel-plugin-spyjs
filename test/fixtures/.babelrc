@@ -1,0 +1,5 @@
+{
+  "plugins": [
+    ["../../../src", {injectRuntime: false, globalApiFunctionName: "$d"}]
+  ]
+}
