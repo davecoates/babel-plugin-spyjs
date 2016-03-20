@@ -1,10 +1,19 @@
 import { readFileSync } from 'fs';
+import initialiseServer from './server';
+
+function replace(str, valueMap) {
+    for (const key in valueMap) {
+        str = str.replace(new RegExp(key, 'g'), valueMap[key]);
+    }
+    return str;
+}
 
 const runtimeScript = readFileSync(__dirname + '/runtime.js', 'utf-8');
 
 export default function({ types: t, template }) {
 
     let injectedRuntime = false;
+    let wsServer;
 
     // Construct wrapped versions of types that flag anything created with them
     // as already visited. I have no idea if this is a good idea! Needed to stop
@@ -85,13 +94,15 @@ export default function({ types: t, template }) {
             this.file = file;
             this.filename = file.opts.filename;
             this.program = file.path;
-            this.apiFunctionId = types.identifier('$d');
+            this.apiFunctionId = types.identifier(options.globalApiFunctionName);
         }
 
         build() {
+            let nodeId = 0;
             const wrapNode = node => {
                 const info = buildLocationObject(this.filename, node.loc);
                 info.type = types.stringLiteral(node.type);
+                info.id = types.numericLiteral(nodeId++);
                 if (node.name) {
                     info.name = types.stringLiteral(node.name);
                 }
@@ -113,11 +124,17 @@ export default function({ types: t, template }) {
             Program(path, { file, opts: {
                 injectRuntime = true,
                 globalApiFunctionName = '__spyCallback',
+                serverPort = 3300,
             } }) {
-                if (injectRuntime && !injectedRuntime) {
+                if (!wsServer) {
+                    wsServer = initialiseServer(serverPort);
+                }
+                if (injectRuntime) {
                     injectedRuntime = true;
-                    const injection = t.identifier(runtimeScript.replace(
-                        '__GLOBAL_FUNC_NAME__', globalApiFunctionName));
+                    const injection = t.identifier(replace(runtimeScript, {
+                        __GLOBAL_FUNC_NAME__: globalApiFunctionName,
+                        __WS_ADDRESS__: `ws://127.0.0.1:${serverPort}`,
+                    }));
                     path.node.body.unshift(t.expressionStatement(injection));
                 }
                 const builder = new SpyBuilder(file, { injectRuntime, globalApiFunctionName });

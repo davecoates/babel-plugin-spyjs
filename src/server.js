@@ -1,11 +1,20 @@
-import {server as WebSocketServer} from 'ws';
+import {Server as WebSocketServer} from 'ws';
 
 export default function initialiseServer(port) {
     const wss = new WebSocketServer({ port});
+    console.log("SERVER");
     wss.on('connection', ws => {
-        ws.on('message', message => {
-            console.log('received: %s', message);
+        console.log("CONNECTION")
+        ws.on('message', function (message) {
+            console.log('!eceived and going to resend', message);
+            // Broadcast to all other clients
+            wss.clients.forEach(client => {
+                if (client !== this) {
+                    client.send(message)
+                }
+            });
         });
-        ws.send('something');
+        //setInterval(() => ws.send('hahah!'), 5000);
     });
+    return wss;
 }
