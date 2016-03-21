@@ -13,7 +13,7 @@ const babelOptions = {
     babelrc: false,
 };
 
-const isDir = path => fs.lstatSync(path).isDirectory()
+const isDir = path => fs.lstatSync(path).isDirectory();
 
 describe('finds things to spy on', () => {
     const fixturesDir = path.join(__dirname, 'fixtures');

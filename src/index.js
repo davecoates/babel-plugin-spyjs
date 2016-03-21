@@ -87,6 +87,16 @@ export default function({ types: t, template }) {
             );
         },
 
+        ObjectExpression(path) {
+          if (path.node[VISITED_KEY]) {
+            return;
+          }
+          path.node[VISITED_KEY] = true;
+          path.replaceWith(
+            this.wrapNode(path.node)
+          );
+        }
+
     };
 
     class SpyBuilder {
@@ -95,6 +105,7 @@ export default function({ types: t, template }) {
             this.filename = file.opts.filename;
             this.program = file.path;
             this.apiFunctionId = types.identifier(options.globalApiFunctionName);
+            this.options = options;
         }
 
         build() {
@@ -102,7 +113,9 @@ export default function({ types: t, template }) {
             const wrapNode = node => {
                 const info = buildLocationObject(this.filename, node.loc);
                 info.type = types.stringLiteral(node.type);
-                info.id = types.numericLiteral(nodeId++);
+                if (!this.options.supressId) {
+                  info.id = types.numericLiteral(nodeId++);
+                }
                 if (node.name) {
                     info.name = types.stringLiteral(node.name);
                 }
@@ -125,6 +138,8 @@ export default function({ types: t, template }) {
                 injectRuntime = true,
                 globalApiFunctionName = '__spyCallback',
                 serverPort = 3300,
+                // Supress 'id' in info object passed to api function. Primarily for tests.
+                supressId = false,
             } }) {
                 if (!wsServer) {
                     wsServer = initialiseServer(serverPort);
@@ -137,7 +152,9 @@ export default function({ types: t, template }) {
                     }));
                     path.node.body.unshift(t.expressionStatement(injection));
                 }
-                const builder = new SpyBuilder(file, { injectRuntime, globalApiFunctionName });
+                const builder = new SpyBuilder(file, {
+                  injectRuntime, globalApiFunctionName, supressId,
+                });
                 builder.build();
             }
         }

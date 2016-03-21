@@ -1,5 +1,5 @@
 {
   "plugins": [
-    ["../../../src", {injectRuntime: false, globalApiFunctionName: "$d", serverPort: 3301}]
+    ["../../../src", {injectRuntime: false, globalApiFunctionName: "$d", serverPort: 3301, supressId: true}]
   ]
 }
