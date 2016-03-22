@@ -35,6 +35,7 @@
     "dx"
   ],
   "dependencies": {
+    "circular-json": "^0.3.0",
     "lodash": "^4.6.1",
     "ws": "^1.0.1"
   }

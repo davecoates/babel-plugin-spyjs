@@ -1,3 +1,4 @@
+import { resolve } from 'path';
 import { readFileSync } from 'fs';
 import initialiseServer from './server';
 
@@ -8,7 +9,13 @@ function replace(str, valueMap) {
     return str;
 }
 
-const runtimeScript = readFileSync(__dirname + '/runtime.js', 'utf-8');
+const runtimeDeps = [
+  resolve(`${__dirname}/../node_modules/circular-json/build/circular-json.js`),
+];
+
+const runtimeDepsScript = runtimeDeps.map(filename => readFileSync(filename, 'utf-8'));
+
+const runtimeScript = runtimeDepsScript + readFileSync(__dirname + '/runtime.js', 'utf-8');
 
 export default function({ types: t, template }) {
 
@@ -56,17 +63,31 @@ export default function({ types: t, template }) {
         return types.objectExpression(properties);
     }
 
+    function SimpleWrapNode(path) {
+      if (path.node[VISITED_KEY]) {
+        return;
+      }
+      path.node[VISITED_KEY] = true;
+      path.replaceWith(
+        this.wrapNode(path.node)
+      );
+    }
+
     const componentVisitor = {
 
-        BinaryExpression(path) {
-            if (path.node[VISITED_KEY]) {
-                return;
-            }
-            path.node[VISITED_KEY] = true;
+        BinaryExpression: SimpleWrapNode,
+        ObjectExpression: SimpleWrapNode,
 
+        MemberExpression(path) {
+          if (path.node[VISITED_KEY]) {
+            return;
+          }
+          path.node[VISITED_KEY] = true;
+          if (path.key != 'left' && path.parent.type != 'CallExpression') {
             path.replaceWith(
-                this.wrapNode(path.node)
+              this.wrapNode(path.node)
             );
+          }
         },
 
         Identifier(path) {
@@ -86,16 +107,6 @@ export default function({ types: t, template }) {
                 this.wrapNode(path.node)
             );
         },
-
-        ObjectExpression(path) {
-          if (path.node[VISITED_KEY]) {
-            return;
-          }
-          path.node[VISITED_KEY] = true;
-          path.replaceWith(
-            this.wrapNode(path.node)
-          );
-        }
 
     };
 
@@ -123,7 +134,7 @@ export default function({ types: t, template }) {
                     this.apiFunctionId,
                     [node, toObjectExpression(info)]
                 );
-            }
+            };
 
             this.file.path.traverse(componentVisitor, {
                 wrapNode,
