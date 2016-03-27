@@ -1,3 +1,4 @@
+/* global window, CircularJSON */
 import WebSocket from 'ws';
 
 if (window && !window.__GLOBAL_FUNC_NAME__) {
@@ -11,14 +12,17 @@ if (window && !window.__GLOBAL_FUNC_NAME__) {
     };
     window.__GLOBAL_FUNC_NAME__ = function(value, info) {
         try {
-          const payload = CircularJSON.stringify({value, info});
+          const payload = CircularJSON.stringify({
+              messageType: 'VALUE_UPDATE',
+              payload: {value, info},
+          });
           if (isOpen) {
               ws.send(payload);
           } else {
               queue.push(payload);
           }
         } catch (err) {
-          console.error('Failed to stringify', err, value, info);
+          console.error('Failed to stringify', err, value, info); // eslint-disable-line
         }
         return value;
     };
