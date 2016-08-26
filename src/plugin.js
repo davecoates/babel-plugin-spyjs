@@ -19,7 +19,7 @@ const runtimeDeps = [
 
 const runtimeDepsScript = runtimeDeps.map(filename => readFileSync(filename, 'utf-8'));
 
-const runtimeScript = runtimeDepsScript + readFileSync(__dirname + '/runtime.js', {encoding: 'utf-8'});
+const runtimeScript = runtimeDepsScript + readFileSync(__dirname + '/../lib/runtime.js', {encoding: 'utf-8'});
 
 export default function({ types: t } : { types: Object }) : Object {
 
@@ -225,22 +225,20 @@ export default function({ types: t } : { types: Object }) : Object {
                     const { filename } = file.opts;
                     const { loc } = path.node;
                     if (!loc) {
-                        console.log(path.node);
                         return false;
                     }
-                    
+                    console.log(watches);
                     if (!watches[filename]) return false;
 
                     for (const watch of watches[filename]) {
+                        console.log(watch.start.line, watch.end.line, loc.start.line, loc.end.line);
                         if (watch.start.line === loc.start.line) {
                             if (watch.start.column <= loc.start.column &&
                                    watch.end.column >= loc.end.column)
                             {
-                                console.log('BAM!!!');
                                return true;
                             }
                         } else if (watch.start.line <= loc.start.line && watch.end.line >= loc.end.line) {
-                            console.log('BAM!!!');
                             return true;
                         }
                     }
@@ -253,7 +251,8 @@ export default function({ types: t } : { types: Object }) : Object {
                     injectedRuntime = true;
                     const injection = t.identifier(replace(runtimeScript, {
                         __GLOBAL_FUNC_NAME__: globalApiFunctionName,
-                        __WS_ADDRESS__: `ws://127.0.0.1:${serverPort}`,
+                        __WS_ADDRESS__: '127.0.0.1',
+                        __WS_PORT__: serverPort,
                     }));
                     path.node.body.unshift(t.expressionStatement(injection));
                 }

@@ -16,8 +16,8 @@ export default function initialiseServer(port:number, handlers:MessageHandlers) 
                 const action = JSON.parse(message);
                 const { messageType, payload } = action;
                 if (!messageTypes[messageType]) {
-                    console.error(`Unknown message of type '${messageType} reeived. It has been ignored.'`)
-                    return;
+                    //console.error(`Unknown message of type '${messageType} reeived. It has been ignored.'`)
+                    //return;
                 } else {
                     if (handlers[messageType]) {
                         handlers[messageType](payload);

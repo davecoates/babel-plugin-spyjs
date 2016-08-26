@@ -23,11 +23,13 @@
     "babel-register": "^6.2.0",
     "eslint": "^1.10.3",
     "mocha": "^2.2.5",
-    "rimraf": "^2.4.3"
+    "rimraf": "^2.4.3",
+    "rollup-plugin-node-builtins": "^1.0.7"
   },
   "scripts": {
     "clean": "rimraf lib",
-    "build": "babel src -d lib",
+    "build": "babel src -d lib && node ./build/runtime.js",
+    "build:watch": "babel src -d lib --watch",
     "test": "mocha --compilers js:babel-register",
     "test:watch": "npm run test -- --watch",
     "prepublish": "npm run clean && npm run build"
@@ -39,7 +41,11 @@
   "dependencies": {
     "circular-json": "^0.3.0",
     "lodash": "^4.6.1",
+    "rollup": "^0.34.4",
+    "rollup-plugin-commonjs": "^3.3.1",
+    "rollup-plugin-node-resolve": "^2.0.0",
     "touch": "^1.0.0",
+    "value-mirror": "0.0.4",
     "ws": "^1.0.1"
   }
 }

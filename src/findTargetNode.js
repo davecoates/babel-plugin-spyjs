@@ -27,16 +27,16 @@ function narrowestNode(a, b) {
 }
 
 export default function findTargetNode({ types: t} : {types: Object} ) : Object {
-    const allTypes = Object.keys(t.FLIPPED_ALIAS_KEYS).join('|');
+    const allTypes = Object.keys(t.FLIPPED_ALIAS_KEYS);
     let match;
     return {
         visitor: {
-            Program(path, { file, opts: { target } }) {
+            Program(path, { file, opts: { types = allTypes, target, filter = i => i } }) {
                 this.target = target;
                 let deepest;
                 file.path.traverse({
-                    [allTypes](path) {
-                        if (containsPoint(path.node.loc, target)) {
+                    [types.join('|')](path) {
+                        if (filter(path) && containsPoint(path.node.loc, target)) {
                             deepest = narrowestNode(path, deepest);
                         }
                     }
