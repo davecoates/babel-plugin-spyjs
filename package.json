@@ -29,7 +29,7 @@
   "scripts": {
     "clean": "rimraf lib",
     "build": "babel src -d lib && node ./build/runtime.js",
-    "build:watch": "babel src -d lib --watch",
+    "build:watch": "node ./build/runtime.js && babel src -d lib --watch",
     "test": "mocha --compilers js:babel-register",
     "test:watch": "npm run test -- --watch",
     "prepublish": "npm run clean && npm run build"
@@ -39,7 +39,6 @@
     "dx"
   ],
   "dependencies": {
-    "circular-json": "^0.3.0",
     "lodash": "^4.6.1",
     "rollup": "^0.34.4",
     "rollup-plugin-commonjs": "^3.3.1",

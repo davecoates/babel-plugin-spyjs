@@ -14,7 +14,18 @@ type CodeLocation = {
  * @param {Number} target.column
  */
 export default function getWatchTargets(code:string, target:CodeLocation, babelOptions:?Object) : Object {
-    const filter = path => {
+    const getWatchableTarget = path => {
+        const types = [
+            'Identifier', 'Literal', 'ExpressionStatement', 'StringLiteral',
+            'NumericLiteral', 'VariableDeclaration', 'BlockStatement', 'ClassMethod',
+            'ClassDeclaration',
+            'CallExpression', 'ArrayExpression', 'ArrowFunctionExpression',
+            'FunctionDeclaration', 'ObjectExpression', 'ObjectProperty',
+        ];
+
+        if (types.indexOf(path.type) === -1) {
+            return false;
+        }
         if (path.type === 'Identifier') {
             // We don't want to attempt to watch 'log' (property)
             // console.log('test')
@@ -27,36 +38,32 @@ export default function getWatchTargets(code:string, target:CodeLocation, babelO
             //   { someProperty: 'test' }
             // but we extract value in postprocessing below
         }
-        return true;
+        if (path.type === 'VariableDeclaration') {
+            // For a VariableDeclarator we want to watch the value so for,
+            //    const a = 'test';
+            // we care about 'test';
+            // But can also have,
+            //    const a = 1, b = 2;
+            // So there's 2 valid targets!
+            const declarations = path.node.declarations.map(node => node.init);
+            return [path.node, ...declarations];
+        }
+        if (path.type === 'ObjectProperty') {
+            // For an ObjectProperty take the value so for,
+            //   { myProp: 'test' }
+            // we care about 'test'
+            return [path.node, path.node.value];
+        }
+        return path.node;
     };
-    const types = [
-        'Identifier', 'Literal', 'ExpressionStatement', 'StringLiteral',
-        'CallExpression', 'ArrayExpression',
-        'ObjectExpression',
-        // We accept this but take it's init value in post processing
-        'VariableDeclarator',
-        // We accept this but then take it's value in post processing below
-        'ObjectProperty',
-    ];
     const result = transform(code, {
         ...babelOptions,
         plugins: [
-            [`${__dirname}/findTargetNode.js`, { types, target, filter } ],
+            [`${__dirname}/findTargetNode.js`, { target, getWatchableTarget } ],
         ],
     });
-    const { watchMatchPath } = result.metadata;
+    const { matches, watchMatchPath, range } = result.metadata;
 
-    if (watchMatchPath.type === 'VariableDeclarator') {
-        // For a VariableDeclarator we want to watch the value so for,
-        //    const a = 'test';
-        // we care about 'test';
-        return watchMatchPath.node.init;
-    }
-    if (watchMatchPath.type === 'ObjectProperty') {
-        // For an ObjectProperty take the value so for,
-        //   { myProp: 'test' }
-        // we care about 'test'
-        return watchMatchPath.node.value;
-    }
-    return watchMatchPath;
+//    console.log(matches.map(path => path.loggable))
+    return { watchMatchPath, matches, range };
 }

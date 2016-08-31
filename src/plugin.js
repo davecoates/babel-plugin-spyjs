@@ -4,6 +4,7 @@ import { resolve } from 'path';
 import { readFileSync } from 'fs';
 import initialiseServer from './server';
 import messageTypes from './messageTypes';
+import { containsPoint } from './findTargetnode';
 import type { Location, NodeInfo, Position } from './types';
 
 function replace(str:string, valueMap:{[key:string]: string}) {
@@ -13,13 +14,7 @@ function replace(str:string, valueMap:{[key:string]: string}) {
     return str;
 }
 
-const runtimeDeps = [
-  resolve(`${__dirname}/../node_modules/circular-json/build/circular-json.js`),
-];
-
-const runtimeDepsScript = runtimeDeps.map(filename => readFileSync(filename, 'utf-8'));
-
-const runtimeScript = runtimeDepsScript + readFileSync(__dirname + '/../lib/runtime.js', {encoding: 'utf-8'});
+const runtimeScript = readFileSync(__dirname + '/../lib/runtime.js', {encoding: 'utf-8'});
 
 export default function({ types: t } : { types: Object }) : Object {
 
@@ -94,59 +89,42 @@ export default function({ types: t } : { types: Object }) : Object {
         ...path.node.params.map(wrapParam), ...path.node.body.body];
     }
 
+    const allTypes = Object.keys(t.FLIPPED_ALIAS_KEYS);
+    const visitTypes = [
+                'Identifier', 'Literal', 'StringLiteral',
+                'NumericLiteral',
+                'CallExpression', 'ArrayExpression', 'ArrowFunctionExpression',
+                'ObjectExpression',
+            ];
+
     const componentVisitor = {
-
-        BinaryExpression: SimpleWrapNode,
-        ObjectExpression: SimpleWrapNode,
-        CallExpression(path) {
-          if (!this.shouldVisit(path)) {
-            return;
-          }
-          path.node[VISITED_KEY] = true;
-          path.replaceWith(
-            this.wrapNode(path.node)
-          );
-        },
-
-        MemberExpression(path) {
-            if (!this.shouldVisit(path)) {
-            return;
-          }
-          path.node[VISITED_KEY] = true;
-          if (path.key != 'left' && path.parent.type != 'CallExpression') {
-            path.replaceWith(
-              this.wrapNode(path.node)
-            );
-          }
-        },
-
-        FunctionExpression: FunctionWrapNode,
-
-        ArrowFunctionExpression(path) {
-            if (!this.shouldVisit(path)) {
-            return;
-          }
-          // TODO: If body isn't a BlockStatement need to create one
-        },
-
-        Identifier(path) {
-            if (!this.shouldVisit(path)) {
-                return;
+        [visitTypes.join('|')](path) {
+            if (!this.shouldVisit(path.node)) {
+                return false;
             }
-            // TODO: Work out what should actually do here
-            if (path.parent.type !== 'BinaryExpression') {
-                // We can't wrap these!
-                // const a = 1 + 2;
-                // this doesn't make sense:
-                // const $d(a) = 1 + 2;
-                return;
+            if (['ImportDefaultSpecifier', 'ImportDeclaration', 'ImportSpecifier'].indexOf(path.parent.type) !== -1) {
+                return false;
+            }
+            if (path.type === 'Identifier') {
+                // We don't want to attempt to watch 'log' (property)
+                // console.log('test')
+                // ... or myVar (id)
+                //   let myvar = '2';
+                const parentType = path.parent.type;
+                if (['value', 'object'].indexOf(path.key) === -1 &&
+                    ['TemplateLiteral', 'BinaryExpression', 'ReturnStatement'].indexOf(parentType) === -1) {
+                    return false;
+                }
+                // this will accept someProperty (key)
+                //   { someProperty: 'test' }
+                // but we extract value in postprocessing below
             }
             path.node[VISITED_KEY] = true;
-            path.replaceWith(
-                this.wrapNode(path.node)
-            );
-        },
-
+            if (!path.node.loc) {
+                return false;
+            }
+            path.replaceWith(this.wrapNode(path.node));
+        }
     };
 
     class SpyBuilder {
@@ -155,29 +133,29 @@ export default function({ types: t } : { types: Object }) : Object {
         options: {};
         program: {};
         file: {
-          path: Object;
+            path: Object;
         };
 
-        constructor(file, isWatchingPath, options) {
+        constructor(file, isWatchingNode, options) {
             this.file = file;
             this.filename = file.opts.filename;
             this.program = file.path;
             this.apiFunctionId = types.identifier(options.globalApiFunctionName);
             this.options = options;
-            this.isWatchingPath = isWatchingPath;
+            this.isWatchingNode = isWatchingNode;
         }
 
         build() {
             let nodeId = 0;
             const wrapNode = node => {
                 const info : NodeInfo = {
-                  ...buildLocationObject(this.filename, node.loc),
-                  type: types.stringLiteral(node.type),
-                  name: null,
-                  id: null,
+                    ...buildLocationObject(this.filename, node.loc),
+                    type: types.stringLiteral(node.type),
+                    name: null,
+                    id: null,
                 };
                 if (!this.options.supressId) {
-                  info.id = types.numericLiteral(nodeId++);
+                    info.id = types.numericLiteral(nodeId++);
                 }
                 if (node.name) {
                     info.name = types.stringLiteral(node.name);
@@ -188,12 +166,12 @@ export default function({ types: t } : { types: Object }) : Object {
                 );
             };
 
-            const shouldVisit = path => {
-                if (path.node[VISITED_KEY] || (path.node.callee && path.node.callee[VISITED_KEY])) {
+            const shouldVisit = node => {
+                if (!node || node[VISITED_KEY] || (node.callee && node.callee[VISITED_KEY])) {
                     return false;
                 }
-                return this.isWatchingPath(path);
-            }
+                return this.isWatchingNode(node);
+            };
 
             this.file.path.traverse(componentVisitor, {
                 wrapNode,
@@ -213,54 +191,47 @@ export default function({ types: t } : { types: Object }) : Object {
                 // Supress 'id' in info object passed to api function. Primarily for tests.
                 supressId = false,
             } }) {
-                const messageTypeHandlers = {
-                    [messageTypes.WATCH_TARGET](payload) {
-                        const { filename, target } = payload;
-                        watches[filename] = watches[filename] || [];
-                        watches[filename].push(target);
-                        touch(filename);
-                    },
-                };
-                function isWatchingPath(path) {
-                    const { filename } = file.opts;
-                    const { loc } = path.node;
-                    if (!loc) {
+                    const messageTypeHandlers = {
+                        [messageTypes.WATCH_TARGET](payload) {
+                            const { filename, target } = payload;
+                            watches[filename] = watches[filename] || [];
+                            watches[filename].push(target);
+                            console.log(target);
+                            touch(filename);
+                        },
+                    };
+                    function isWatchingNode(node) {
+                        const { filename } = file.opts;
+                        const { loc } = node;
+                        if (!loc) {
+                            return false;
+                        }
+                        if (!watches[filename]) return false;
+
+                        for (const watch of watches[filename]) {
+                            if (containsPoint(watch, loc.start)) {
+                                return true;
+                            }
+                        }
                         return false;
                     }
-                    console.log(watches);
-                    if (!watches[filename]) return false;
-
-                    for (const watch of watches[filename]) {
-                        console.log(watch.start.line, watch.end.line, loc.start.line, loc.end.line);
-                        if (watch.start.line === loc.start.line) {
-                            if (watch.start.column <= loc.start.column &&
-                                   watch.end.column >= loc.end.column)
-                            {
-                               return true;
-                            }
-                        } else if (watch.start.line <= loc.start.line && watch.end.line >= loc.end.line) {
-                            return true;
-                        }
+                    if (!wsServer) {
+                        wsServer = initialiseServer(serverPort, messageTypeHandlers);
                     }
-                    return false;
+                    if (injectRuntime) {
+                        injectedRuntime = true;
+                        const injection = t.identifier(replace(runtimeScript, {
+                            __GLOBAL_FUNC_NAME__: globalApiFunctionName,
+                            __WS_ADDRESS__: '127.0.0.1',
+                            __WS_PORT__: serverPort,
+                        }));
+                        path.node.body.unshift(t.expressionStatement(injection));
+                    }
+                    const builder = new SpyBuilder(file, isWatchingNode, {
+                        injectRuntime, globalApiFunctionName, supressId,
+                    });
+                    builder.build();
                 }
-                if (!wsServer) {
-                    wsServer = initialiseServer(serverPort, messageTypeHandlers);
-                }
-                if (injectRuntime) {
-                    injectedRuntime = true;
-                    const injection = t.identifier(replace(runtimeScript, {
-                        __GLOBAL_FUNC_NAME__: globalApiFunctionName,
-                        __WS_ADDRESS__: '127.0.0.1',
-                        __WS_PORT__: serverPort,
-                    }));
-                    path.node.body.unshift(t.expressionStatement(injection));
-                }
-                const builder = new SpyBuilder(file, isWatchingPath, {
-                  injectRuntime, globalApiFunctionName, supressId,
-                });
-                builder.build();
-            }
         }
     };
 }
