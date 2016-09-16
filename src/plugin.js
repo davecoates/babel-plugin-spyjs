@@ -29,7 +29,7 @@ export default function({ types: t } : { types: Object }) : Object {
         types[key] = target => IGNORE(t[key](target));
     }
 
-    const VISITED_KEY = 'watcher-spies-' + Date.now();
+    const VISITED_KEY = 'spyjs-spies-' + Date.now();
 
     function IGNORE(target) {
         target[VISITED_KEY] = true;
@@ -92,7 +92,7 @@ export default function({ types: t } : { types: Object }) : Object {
     const allTypes = Object.keys(t.FLIPPED_ALIAS_KEYS);
     const visitTypes = [
                 'Identifier', 'Literal', 'StringLiteral',
-                'NumericLiteral',
+                'NumericLiteral', 'NewExpression', 'BinaryExpression',
                 'CallExpression', 'ArrayExpression', 'ArrowFunctionExpression',
                 'ObjectExpression',
             ];

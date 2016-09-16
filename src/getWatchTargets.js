@@ -18,7 +18,7 @@ export default function getWatchTargets(code:string, target:CodeLocation, babelO
         const types = [
             'Identifier', 'Literal', 'ExpressionStatement', 'StringLiteral',
             'NumericLiteral', 'VariableDeclaration', 'BlockStatement', 'ClassMethod',
-            'ClassDeclaration',
+            'ClassDeclaration', 'NewExpression', 'BinaryExpression',
             'CallExpression', 'ArrayExpression', 'ArrowFunctionExpression',
             'FunctionDeclaration', 'ObjectExpression', 'ObjectProperty',
         ];
