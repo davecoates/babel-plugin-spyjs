@@ -1,12 +1,15 @@
 {
   "name": "babel-plugin-spyjs",
-  "version": "0.0.1",
+  "version": "0.0.4",
   "description": "Babel plugin to spy on JS",
   "main": "lib/index.js",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/davecoates/babel-plugin-spyjs.git"
   },
+  "files": [
+      "lib"
+  ],
   "author": "Dave Coates",
   "license": "MIT",
   "bugs": {
