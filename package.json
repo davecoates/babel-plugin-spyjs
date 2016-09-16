@@ -1,18 +1,18 @@
 {
-  "name": "babel-plugin-watcher",
+  "name": "babel-plugin-spyjs",
   "version": "0.0.1",
-  "description": "Babel plugin to spy on variables",
+  "description": "Babel plugin to spy on JS",
   "main": "lib/index.js",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/davecoates/babel-plugin-watcher.git"
+    "url": "git+https://github.com/davecoates/babel-plugin-spyjs.git"
   },
   "author": "Dave Coates",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/davecoates/babel-plugin-watcher/issues"
+    "url": "https://github.com/davecoates/babel-plugin-spyjs/issues"
   },
-  "homepage": "https://github.com/davecoates/babel-plugin-watcher#readme",
+  "homepage": "https://github.com/davecoates/babel-plugin-spyjs#readme",
   "devDependencies": {
     "babel-cli": "^6.2.0",
     "babel-core": "^6.2.1",
