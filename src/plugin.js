@@ -196,7 +196,12 @@ export default function({ types: t } : { types: Object }) : Object {
                             const { filename, target } = payload;
                             watches[filename] = watches[filename] || [];
                             watches[filename].push(target);
-                            console.log(target);
+                            touch(filename);
+                        },
+                        [messageTypes.CLEAR_FILE_WATCHES](payload) {
+                            const { filename } = payload;
+                            watches[filename] = [];
+                            console.log('clear', filename);
                             touch(filename);
                         },
                     };
@@ -223,7 +228,7 @@ export default function({ types: t } : { types: Object }) : Object {
                         const injection = t.identifier(replace(runtimeScript, {
                             __GLOBAL_FUNC_NAME__: globalApiFunctionName,
                             __WS_ADDRESS__: '127.0.0.1',
-                            __WS_PORT__: serverPort,
+                            __WS_PORT__: String(serverPort),
                         }));
                         path.node.body.unshift(t.expressionStatement(injection));
                     }

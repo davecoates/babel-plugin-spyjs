@@ -1,5 +1,6 @@
 export const GET_WATCH_TARGETS = 'GET_WATCH_TARGETS';
 export const WATCH_TARGET = 'WATCH_TARGET';
+export const CLEAR_FILE_WATCHES = 'CLEAR_FILE_WATCHES';
 export const VALUE_UPDATE = 'VALUE_UPDATE';
 
 export default {
